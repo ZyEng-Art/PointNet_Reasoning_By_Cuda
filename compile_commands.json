@@ -1,0 +1,26 @@
+[
+    {
+        "directory": "/home/course/zengyong/PointNet_Reasoning_By_Cuda/build",
+        "command": "/usr/local/cuda-12.1/bin/nvcc -forward-unknown-to-host-compiler  --options-file CMakeFiles/main.dir/includes_CUDA.rsp -std=c++14 \"--generate-code=arch=compute_50,code=[compute_50,sm_50]\" \"--generate-code=arch=compute_52,code=[compute_52,sm_52]\" \"--generate-code=arch=compute_53,code=[compute_53,sm_53]\" \"--generate-code=arch=compute_60,code=[compute_60,sm_60]\" \"--generate-code=arch=compute_61,code=[compute_61,sm_61]\" \"--generate-code=arch=compute_62,code=[compute_62,sm_62]\" \"--generate-code=arch=compute_70,code=[compute_70,sm_70]\" -Xcompiler \"-std=c++14 -g -O0\" -x cu -c /home/course/zengyong/PointNet_Reasoning_By_Cuda/src/kernels.cu -o CMakeFiles/main.dir/src/kernels.cu.o",
+        "file": "/home/course/zengyong/PointNet_Reasoning_By_Cuda/src/kernels.cu",
+        "output": "CMakeFiles/main.dir/src/kernels.cu.o"
+    },
+    {
+        "directory": "/home/course/zengyong/PointNet_Reasoning_By_Cuda/build",
+        "command": "/usr/local/cuda-12.1/bin/nvcc -forward-unknown-to-host-compiler  --options-file CMakeFiles/main.dir/includes_CUDA.rsp -std=c++14 \"--generate-code=arch=compute_50,code=[compute_50,sm_50]\" \"--generate-code=arch=compute_52,code=[compute_52,sm_52]\" \"--generate-code=arch=compute_53,code=[compute_53,sm_53]\" \"--generate-code=arch=compute_60,code=[compute_60,sm_60]\" \"--generate-code=arch=compute_61,code=[compute_61,sm_61]\" \"--generate-code=arch=compute_62,code=[compute_62,sm_62]\" \"--generate-code=arch=compute_70,code=[compute_70,sm_70]\" -Xcompiler \"-std=c++14 -g -O0\" -x cu -c /home/course/zengyong/PointNet_Reasoning_By_Cuda/src/main.cu -o CMakeFiles/main.dir/src/main.cu.o",
+        "file": "/home/course/zengyong/PointNet_Reasoning_By_Cuda/src/main.cu",
+        "output": "CMakeFiles/main.dir/src/main.cu.o"
+    },
+    {
+        "directory": "/home/course/zengyong/PointNet_Reasoning_By_Cuda/build",
+        "command": "/usr/local/cuda-12.1/bin/nvcc -forward-unknown-to-host-compiler  --options-file CMakeFiles/main.dir/includes_CUDA.rsp -std=c++14 \"--generate-code=arch=compute_50,code=[compute_50,sm_50]\" \"--generate-code=arch=compute_52,code=[compute_52,sm_52]\" \"--generate-code=arch=compute_53,code=[compute_53,sm_53]\" \"--generate-code=arch=compute_60,code=[compute_60,sm_60]\" \"--generate-code=arch=compute_61,code=[compute_61,sm_61]\" \"--generate-code=arch=compute_62,code=[compute_62,sm_62]\" \"--generate-code=arch=compute_70,code=[compute_70,sm_70]\" -Xcompiler \"-std=c++14 -g -O0\" -x cu -c /home/course/zengyong/PointNet_Reasoning_By_Cuda/src/matrix.cu -o CMakeFiles/main.dir/src/matrix.cu.o",
+        "file": "/home/course/zengyong/PointNet_Reasoning_By_Cuda/src/matrix.cu",
+        "output": "CMakeFiles/main.dir/src/matrix.cu.o"
+    },
+    {
+        "directory": "/home/course/zengyong/PointNet_Reasoning_By_Cuda/build",
+        "command": "/usr/local/cuda-12.1/bin/nvcc -forward-unknown-to-host-compiler  --options-file CMakeFiles/main.dir/includes_CUDA.rsp -std=c++14 \"--generate-code=arch=compute_50,code=[compute_50,sm_50]\" \"--generate-code=arch=compute_52,code=[compute_52,sm_52]\" \"--generate-code=arch=compute_53,code=[compute_53,sm_53]\" \"--generate-code=arch=compute_60,code=[compute_60,sm_60]\" \"--generate-code=arch=compute_61,code=[compute_61,sm_61]\" \"--generate-code=arch=compute_62,code=[compute_62,sm_62]\" \"--generate-code=arch=compute_70,code=[compute_70,sm_70]\" -Xcompiler \"-std=c++14 -g -O0\" -x cu -c /home/course/zengyong/PointNet_Reasoning_By_Cuda/src/models.cu -o CMakeFiles/main.dir/src/models.cu.o",
+        "file": "/home/course/zengyong/PointNet_Reasoning_By_Cuda/src/models.cu",
+        "output": "CMakeFiles/main.dir/src/models.cu.o"
+    }
+]

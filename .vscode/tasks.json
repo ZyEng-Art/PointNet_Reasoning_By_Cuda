@@ -1,0 +1,50 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "mkdir",
+			"type": "shell",
+			"command": "mkdir -p build",
+			"options": {
+				"cwd": "/home/course/zengyong/PointNet_Reasoning_By_Cuda"
+			}
+		},
+		{
+            "label": "cmake",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "../"
+            ],
+            "options": {
+                "cwd": "/home/course/zengyong/PointNet_Reasoning_By_Cuda/build"
+            },     
+			"dependsOn": [
+				"mkdir"
+			]      
+        },
+		{
+			"label": "make",
+			"type": "shell",
+			"command": "cd build && make dbg=1",
+			"problemMatcher": [
+				"$nvcc",
+				"$gcc"
+			],
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			// "options": {
+			// 	"cwd": "/home/course/zengyong/PointNet_Reasoning_By_Cuda/build"
+			// }
+		},
+		{
+			"label": "build",
+			"dependsOn": [
+				"cmake",
+				"make"
+			]
+		},
+	],
+}

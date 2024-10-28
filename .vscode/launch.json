@@ -1,0 +1,19 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "cuda - Build and debug active file",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "/home/course/zengyong/PointNet_Reasoning_By_Cuda/build/main",
+            "args": [
+                "/home/course/zengyong/PointNet_Reasoning_By_Cuda/training",
+            ],
+            "stopAtEntry": false,
+            "cwd": "/home/course/zengyong/PointNet_Reasoning_By_Cuda/build",
+            "environment": [],
+            "preLaunchTask": "build",
+            "miDebuggerPath": "/usr/bin/gdb",//usr/local/cuda-12.1/bin/cuda-gdb"
+        }
+    ]
+}
