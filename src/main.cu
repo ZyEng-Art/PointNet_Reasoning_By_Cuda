@@ -167,8 +167,8 @@ int main(int argc, char *argv[]) {
         // TODO ...在这里实现利用CUDA对点云数据进行深度学习的推理过程，当然，你也可以改进for循环以使用batch推理提速...
         // 打印每一帧的数据，仅用于调试！
         // std::cout << list_of_points[i].size() << " "<<list_of_points[i].size() / point_channels << std::endl;
-        Matrix<float> *points = host_device_by_matrix<float>(list_of_points[i], list_of_points[i].size() / point_channels, point_channels);
-        Matrix<float> *out = PointNetClassifier(points, params);
+        Matrix *points = host_device_by_matrix(list_of_points[i], list_of_points[i].size() / point_channels, point_channels);
+        Matrix *out = PointNetClassifier(points, params);
         float *output = new float[out->height * out->width];
         cudaMemcpy(output, out->data, out->height * out->width * sizeof(float), cudaMemcpyDeviceToHost);
         std::cout << out->height << " " << out->width << std::endl;

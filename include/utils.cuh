@@ -8,5 +8,5 @@
 #include <map>
 #include <string>
 #include <vector>
-
+typedef float ElementType;
 #endif
