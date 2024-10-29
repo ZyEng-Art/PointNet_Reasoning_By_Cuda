@@ -142,6 +142,42 @@ void output_device_info() {
     std::cout << "每个EM的最大线程数：" << devProp.maxThreadsPerMultiProcessor << std::endl;
     std::cout << "每个SM的最大线程束数：" << devProp.maxThreadsPerMultiProcessor / 32 << std::endl;
 }
+unsigned argmax(float *arr, unsigned size) {
+    unsigned max_index = 0;
+    float max_value = arr[0];
+    for (unsigned i = 1; i < size; i++) {
+        if (arr[i] > max_value) {
+            max_value = arr[i];
+            max_index = i;
+        }
+    }
+    return max_index;
+}
+
+void fix_length_with_median(std::vector<std::vector<float>> &data) {
+    unsigned median = 22500 * 3;
+    for (auto &d : data) {
+        d.resize(median, 0);
+    }
+}
+
+void test() {
+    std::vector<float> test_points = { 1, 2, 3, 5, 6, 7, 8, 9, 10 };
+    std::vector<float> test_weights = { 1, 2, 3 };
+    std::vector<float> test_bias = { 1 };
+    Matrix *points = host_device_by_matrix(test_points, 1, 9);
+    // Matrix *points_t = Transpose(points);
+    // Matrix *weights = host_device_by_matrix(test_weights, 3, 1);
+    // Matrix *bias = host_device_by_matrix(test_bias, 1, 1);
+    // Matrix *out = Conv1d(points_t, test_weights, test_bias, 3, 1);
+    // Matrix *out = Linear(points, test_weights, test_bias, 3, 1);
+    Self_Add_I(points);
+    points->dump();
+    // out->dump();
+    free_matrix(points);
+    // free_matrix(points_t);
+    // free_matrix(out);
+}
 int main(int argc, char *argv[]) {
     // output_device_info();
 
@@ -149,38 +185,40 @@ int main(int argc, char *argv[]) {
     // cout << dir;
 
     // 读取模型参数
-    auto params = read_params(dir);
+    std::string model_path = dir + "/params";
+    auto params = read_params(model_path);
 
-    std::string file_path = argv[1];
-    file_path += "/data/test_point_clouds.h5";
+    std::string file_path = dir + "/data/test_point_clouds.h5";
     std::vector<std::vector<float>> list_of_points;
     std::vector<int> list_of_labels;
     // 读取训练集数据
     read_h5_file(file_path, list_of_points, list_of_labels);
+    fix_length_with_median(list_of_points);
 
     // 开始计时，使用chrono计时，不支持其它计时方式
     auto start = std::chrono::high_resolution_clock::now();
 
-    // std::cout << "size:" << list_of_labels.size() << std::endl;
     unsigned point_channels = 3;
+    unsigned sum = 0;
     for (size_t i = 0; i < list_of_points.size(); i++) {
         // TODO ...在这里实现利用CUDA对点云数据进行深度学习的推理过程，当然，你也可以改进for循环以使用batch推理提速...
         // 打印每一帧的数据，仅用于调试！
-        // std::cout << list_of_points[i].size() << " "<<list_of_points[i].size() / point_channels << std::endl;
-        Matrix *points = host_device_by_matrix(list_of_points[i], list_of_points[i].size() / point_channels, point_channels);
-        Matrix *out = PointNetClassifier(points, params);
+        Matrix *points = host_device_by_matrix(list_of_points[i], 1, list_of_points[i].size() / point_channels, point_channels);
+        Matrix *points_t = Transpose(points);
+        free_matrix(points);
+        Matrix *out = PointNetClassifier(points_t, params, 10);
+        assert(out->dim == 2 && out->height == 1 && out->width == 10);
         float *output = new float[out->height * out->width];
         cudaMemcpy(output, out->data, out->height * out->width * sizeof(float), cudaMemcpyDeviceToHost);
-        std::cout << out->height << " " << out->width << std::endl;
-        // std::cout << list_of_points
-        // std::cout << "Points " << i << ": ";
-        // std::cout << "shape:" << list_of_points[i].size() << std::endl;
-        // for (const auto& point : list_of_points[i]) {
-        // std::cout << point << " ";
-        // }
-        // std::cout << "\nLabel: " << list_of_labels[i] << std::endl;
+        unsigned pred = argmax(output, out->width);
+        if (list_of_labels[i] == pred) {
+            std::cout << i << ": Predicted label: " << pred << " True label" << list_of_labels[i] << " success" << std::endl;
+            sum++;
+        }
+        else
+            std::cout << i << ": Predicted label: " << pred << " True label" << list_of_labels[i] << " failed" << std::endl;
+        free_matrix(points);
     }
-
     // 向主机端同步以等待所有异步调用的GPU kernel执行完毕，这句必须要有
     cudaDeviceSynchronize();
 
@@ -189,7 +227,7 @@ int main(int argc, char *argv[]) {
     std::chrono::duration<double> diff = end - start;
 
     // 输出结果，请严格保持此输出格式，并把0.0001替换成实际的准确率，请不要输出除了此结果之外的任何内容！！！
-    std::cout << std::fixed << std::setprecision(4) << diff.count() << ":0.0001";
+    std::cout << std::fixed << std::setprecision(4) << diff.count() << ":" << sum / (float) list_of_points.size();
 
     return 0;
 }
