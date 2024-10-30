@@ -119,7 +119,7 @@ void Self_Add_I(Matrix *input) {
     self_add_i<<<grid_size, block_size>>>(input, I_size);
 }
 
-Matrix *STN3d(Matrix *input, std::map<std::string, std::vector<ElementType>> &params, ElementType eps = 1e-5) {
+Matrix *STN3d(Matrix *input, std::map<std::string, std::vector<ElementType>> &params, ElementType eps) {
     // input->dump();
     Matrix *conv1 = Conv1d(input, params["feat.stn.conv1.weight"], params["feat.stn.conv1.bias"], 3, 64);
     // conv1->dump();
@@ -202,14 +202,15 @@ Matrix *STNkd(Matrix *input, std::map<std::string, std::vector<ElementType>> &pa
     return fc3;
 }
 
-Matrix *Multifly(Matrix *input, Matrix *weight) {
+// input d x n, weight d x m, output m x n (input^T * weight)^T=weight^T * input
+Matrix *Multifly_With_T(Matrix *input, Matrix *weight) {
     assert(input->dim == 3);
-    assert(input->width == weight->height);
-    Matrix *output = new_unified_matrix(input->batch, input->height, weight->width);
+    assert(input->height == weight->height);
+    Matrix *output = new_unified_matrix(input->batch, weight->width, input->width);
     dim3 block_size(32, 32);
     dim3 grid_size((output->width + block_size.x - 1) / block_size.x,
         (output->height + block_size.y - 1) / block_size.y);
-    multifly<<<grid_size, block_size>>>(input, output, weight);
+    multifly_with_t<<<grid_size, block_size>>>(input, output, weight);
     return output;
 }
 
@@ -217,11 +218,9 @@ Matrix *Multifly(Matrix *input, Matrix *weight) {
 Matrix *PointNetEncoder(Matrix *input, std::map<std::string, std::vector<ElementType>> &params) {
     Matrix *trans = STN3d(input, params); // (B, 3, 3)
     // trans->dump();
-    Matrix *trans_t = Transpose(trans);
-    Matrix *after_trans = Multifly(trans_t, input); // (B, 3, N)
+    Matrix *after_trans = Multifly_With_T(input, trans); // (B, 3, N)
     // after_trans->dump();
     free_matrix(trans);
-    free_matrix(trans_t);
 
     Matrix *conv1 = Conv1d(after_trans, params["feat.conv1.weight"], params["feat.conv1.bias"], 3, 64); //(B, 64, N)
     BatchNorm1d_3d(conv1, params["feat.bn1.running_mean"], params["feat.bn1.running_var"], params["feat.bn1.weight"], params["feat.bn1.bias"], 1e-5);
@@ -230,12 +229,10 @@ Matrix *PointNetEncoder(Matrix *input, std::map<std::string, std::vector<Element
 
     Matrix *trans_feat = STNkd(conv1, params, 64); // (B, 64, 64)
     // trans_feat->dump();
-    Matrix *trans_feat_t = Transpose(trans_feat);
-    Matrix *trans_feat_after = Multifly(trans_feat_t, conv1); // (B, 64, N)
+    Matrix *trans_feat_after = Multifly_With_T(conv1, trans_feat); // (B, 64, N)
     // trans_feat_after->dump();
     free_matrix(conv1);
     free_matrix(trans_feat);
-    free_matrix(trans_feat_t);
 
     Matrix *conv2 = Conv1d(trans_feat_after, params["feat.conv2.weight"], params["feat.conv2.bias"], 64, 128);
     BatchNorm1d_3d(conv2, params["feat.bn2.running_mean"], params["feat.bn2.running_var"], params["feat.bn2.weight"], params["feat.bn2.bias"], 1e-5);

@@ -20,6 +20,7 @@ __global__ void batch_norm1d_2d(Matrix *input, Matrix *running_mean, Matrix *run
 __global__ void self_add_i(Matrix *input, unsigned I_size);
 
 __global__ void multifly(Matrix *input, Matrix *output, Matrix *trans);
+__global__ void multifly_with_t(Matrix *input, Matrix *output, Matrix *trans);
 
 __global__ void transpose(Matrix *input, Matrix *output);
 __global__ void arg_max(Matrix *input, Matrix *output);

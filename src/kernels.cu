@@ -111,7 +111,7 @@ __global__ void self_add_i(Matrix *input, unsigned I_size) {
     if (row >= input->height || col >= input->width) {
         return;
     }
-    input->set_element(row, col, input->get_element(row, col ) + 1);
+    input->set_element(row, col, input->get_element(row, col) + 1);
 }
 
 __global__ void transpose(Matrix *input, Matrix *output) {
@@ -136,6 +136,22 @@ __global__ void multifly(Matrix *input, Matrix *output, Matrix *trans) {
     output->set_element(row, col, sum);
 }
 
+//input d x n, trans d x m, output m x n (input^T * trans)^T=trans^T * input
+__global__ void multifly_with_t(Matrix *input, Matrix *output, Matrix *trans) {
+    unsigned row = blockIdx.y * blockDim.y + threadIdx.y;
+    unsigned col = blockIdx.x * blockDim.x + threadIdx.x;
+    if (row >= output->height || col >= output->width) {
+        return;
+    }
+    ElementType sum = 0;
+    for (unsigned i = 0; i < input->height; i++) {
+        sum += input->get_element(i, col) * trans->get_element(i, row);
+    }
+    output->set_element(row, col, sum);
+}
+
+
+// nonuse
 __global__ void log_softmax(Matrix *input, Matrix *output) {
     unsigned row = blockIdx.y * blockDim.y + threadIdx.y;
     unsigned col = blockIdx.x * blockDim.x + threadIdx.x;

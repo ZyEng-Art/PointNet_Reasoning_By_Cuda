@@ -12,7 +12,7 @@ void Self_Add_I(Matrix *input);
 Matrix *Transpose(Matrix *input);
 Matrix *Linear(Matrix *input, std::vector<ElementType> &weight, std::vector<ElementType> &bias, unsigned in_features, unsigned out_features) ;
 
-Matrix *STN3d(Matrix *input, std::map<std::string, std::vector<ElementType>> &params, ElementType eps);
+Matrix *STN3d(Matrix *input, std::map<std::string, std::vector<ElementType>> &params, ElementType eps=1e-5);
 Matrix *STNkd(Matrix *input, std::map<std::string, std::vector<ElementType>> &params);
 Matrix *PointNetEncoder(Matrix *input, std::map<std::string, std::vector<ElementType>> &params);
 Matrix *PointNetClassifier(Matrix *input, std::map<std::string, std::vector<ElementType>> &params, unsigned num_classes);
