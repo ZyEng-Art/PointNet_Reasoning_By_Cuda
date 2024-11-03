@@ -1,0 +1,12 @@
+{
+    "files.associations": {
+        "config": "plaintext",
+        "*.cu": "cuda-cpp",
+        "\"*.cu\"": "\"c\"",
+        "*.cpp": "cpp",
+        "*.json": "jsonc",
+        "array": "cpp",
+        "string": "cpp",
+        "string_view": "cpp"
+    }
+}

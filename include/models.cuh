@@ -11,6 +11,7 @@ void BatchNorm1d(Matrix *input, std::vector<ElementType> &running_mean, std::vec
 void Self_Add_I(Matrix *input);
 Matrix *Transpose(Matrix *input);
 Matrix *Linear(Matrix *input, std::vector<ElementType> &weight, std::vector<ElementType> &bias, unsigned in_features, unsigned out_features) ;
+Matrix *Multifly_With_T(Matrix *input, Matrix *weight);
 
 Matrix *STN3d(Matrix *input, std::map<std::string, std::vector<ElementType>> &params, ElementType eps=1e-5);
 Matrix *STNkd(Matrix *input, std::map<std::string, std::vector<ElementType>> &params);

@@ -163,17 +163,19 @@ void fix_length_with_median(std::vector<std::vector<float>> &data) {
 
 void test() {
     std::vector<float> test_points = { 1, 2, 3, 5, 6, 7, 8, 9, 10 };
-    std::vector<float> test_weights = { 1, 2, 3 };
-    std::vector<float> test_bias = { 1 };
-    Matrix *points = host_device_by_matrix(test_points, 1, 9);
-    // Matrix *points_t = Transpose(points);
-    // Matrix *weights = host_device_by_matrix(test_weights, 3, 1);
-    // Matrix *bias = host_device_by_matrix(test_bias, 1, 1);
-    // Matrix *out = Conv1d(points_t, test_weights, test_bias, 3, 1);
-    // Matrix *out = Linear(points, test_weights, test_bias, 3, 1);
-    Self_Add_I(points);
+    std::vector<float> test_weights = { 1, 1, 2, 2, 3, 3 };
+    std::vector<float> test_bias = { 1, 2 };
+    Matrix *points = host_device_by_matrix(test_points, 1, 3, 3);
+    Matrix *points_t = Transpose(points);
+    Matrix *weights = host_device_by_matrix(test_weights, 3, 2);
+    // Matrix *bias = host_device_by_matrix(test_bias, 2, 1);
+    // Matrix *out = Conv1d(points_t, test_weights, test_bias, 3, 2);
+    // Matrix *out = Linear(points, test_weights, test_bias, 3, 2);
+    Matrix *out = Multifly_With_T(points_t, weights);
+    // Self_Add_I(points);
+    // weights->dump();
     points->dump();
-    // out->dump();
+    out->dump();
     free_matrix(points);
     // free_matrix(points_t);
     // free_matrix(out);
@@ -194,7 +196,8 @@ int main(int argc, char *argv[]) {
     // 读取训练集数据
     read_h5_file(file_path, list_of_points, list_of_labels);
     fix_length_with_median(list_of_points);
-
+    test();
+    // return;
     // 开始计时，使用chrono计时，不支持其它计时方式
     auto start = std::chrono::high_resolution_clock::now();
 
@@ -204,7 +207,10 @@ int main(int argc, char *argv[]) {
         // TODO ...在这里实现利用CUDA对点云数据进行深度学习的推理过程，当然，你也可以改进for循环以使用batch推理提速...
         // 打印每一帧的数据，仅用于调试！
         Matrix *points = host_device_by_matrix(list_of_points[i], 1, list_of_points[i].size() / point_channels, point_channels);
+        // points->dump();
         Matrix *points_t = Transpose(points);
+        // points_t->dump();
+
         free_matrix(points);
         Matrix *out = PointNetClassifier(points_t, params, 10);
         assert(out->dim == 2 && out->height == 1 && out->width == 10);
@@ -218,6 +224,7 @@ int main(int argc, char *argv[]) {
         else
             std::cout << i << ": Predicted label: " << pred << " True label" << list_of_labels[i] << " failed" << std::endl;
         free_matrix(points);
+        // if (i == 1) break;
     }
     // 向主机端同步以等待所有异步调用的GPU kernel执行完毕，这句必须要有
     cudaDeviceSynchronize();

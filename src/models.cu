@@ -16,7 +16,7 @@ Matrix *Conv1d(Matrix *input, std::vector<ElementType> &weight, std::vector<Elem
     dim3 block_size(32, 32);
     dim3 grid_size((output->width + block_size.x - 1) / block_size.x,
         (output->height + block_size.y - 1) / block_size.y);
-    conv1d_1kernel<<<grid_size, block_size>>>(input, output, weights, biases);
+    conv1d_1kernel_shared_mem<<<grid_size, block_size>>>(input, output, weights, biases);
     free_matrix(weights);
     free_matrix(biases);
     return output;
@@ -34,7 +34,7 @@ Matrix *Linear(Matrix *input, std::vector<ElementType> &weight, std::vector<Elem
     dim3 block_size(32, 32);
     dim3 grid_size((output->width + block_size.x - 1) / block_size.x,
         (output->height + block_size.y - 1) / block_size.y);
-    linear<<<grid_size, block_size>>>(input, output, weights, biases);
+    linear_shared_mem<<<grid_size, block_size>>>(input, output, weights, biases);
     free_matrix(weights);
     free_matrix(biases);
     return output;
@@ -130,6 +130,7 @@ Matrix *STN3d(Matrix *input, std::map<std::string, std::vector<ElementType>> &pa
     Matrix *conv2 = Conv1d(conv1, params["feat.stn.conv2.weight"], params["feat.stn.conv2.bias"], 64, 128);
     BatchNorm1d_3d(conv2, params["feat.stn.bn2.running_mean"], params["feat.stn.bn2.running_var"], params["feat.stn.bn2.weight"], params["feat.stn.bn2.bias"], eps);
     Relu(conv2);
+    // conv2->dump();
     free_matrix(conv1);
     Matrix *conv3 = Conv1d(conv2, params["feat.stn.conv3.weight"], params["feat.stn.conv3.bias"], 128, 1024);
     BatchNorm1d_3d(conv3, params["feat.stn.bn3.running_mean"], params["feat.stn.bn3.running_var"], params["feat.stn.bn3.weight"], params["feat.stn.bn3.bias"], eps);
@@ -210,7 +211,7 @@ Matrix *Multifly_With_T(Matrix *input, Matrix *weight) {
     dim3 block_size(32, 32);
     dim3 grid_size((output->width + block_size.x - 1) / block_size.x,
         (output->height + block_size.y - 1) / block_size.y);
-    multifly_with_t<<<grid_size, block_size>>>(input, output, weight);
+    multifly_with_t_shared_mem<<<grid_size, block_size>>>(input, output, weight);
     return output;
 }
 

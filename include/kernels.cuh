@@ -4,7 +4,9 @@
 #include "matrix.cuh"
 
 __global__ void conv1d_1kernel(Matrix *input, Matrix *output, Matrix *weight, Matrix *bias);
+__global__ void conv1d_1kernel_shared_mem(Matrix *input, Matrix *output, Matrix *weight, Matrix *bias);
 __global__ void linear(Matrix *input, Matrix *output, Matrix *weight, Matrix *bias);
+__global__ void linear_shared_mem(Matrix *input, Matrix *output, Matrix *weight, Matrix *bias);
 
 __global__ void add(Matrix *a, Matrix *b, Matrix *c);
 
@@ -21,6 +23,7 @@ __global__ void self_add_i(Matrix *input, unsigned I_size);
 
 __global__ void multifly(Matrix *input, Matrix *output, Matrix *trans);
 __global__ void multifly_with_t(Matrix *input, Matrix *output, Matrix *trans);
+__global__ void multifly_with_t_shared_mem(Matrix *input, Matrix *output, Matrix *trans);
 
 __global__ void transpose(Matrix *input, Matrix *output);
 __global__ void arg_max(Matrix *input, Matrix *output);
