@@ -14,8 +14,10 @@ Matrix *Conv1d(Matrix *input, std::vector<ElementType> &weight, std::vector<Elem
     Matrix *output = new_unified_matrix(input->batch, out_channels, input->width);
 
     dim3 block_size(32, 32);
-    dim3 grid_size((output->width + block_size.x - 1) / block_size.x,
-        (output->height + block_size.y - 1) / block_size.y);
+    dim3 grid_size(
+        (output->width + block_size.x - 1) / block_size.x,
+        (output->height + block_size.y - 1) / block_size.y,
+        output->batch);
     conv1d_1kernel_shared_mem<<<grid_size, block_size>>>(input, output, weights, biases);
     free_matrix(weights);
     free_matrix(biases);
@@ -41,26 +43,37 @@ Matrix *Linear(Matrix *input, std::vector<ElementType> &weight, std::vector<Elem
 }
 
 void Relu(Matrix *input) {
-    dim3 block_size(32, 32);
-    dim3 grid_size((input->width + block_size.x - 1) / block_size.x,
-        (input->height + block_size.y - 1) / block_size.y);
-    relu<<<grid_size, block_size>>>(input);
+    if (input->dim == 2) {
+        dim3 block_size(32, 32);
+        dim3 grid_size((input->width + block_size.x - 1) / block_size.x,
+            (input->height + block_size.y - 1) / block_size.y);
+        relu2<<<grid_size, block_size>>>(input);
+    }
+    else {
+        dim3 block_size(32, 32);
+        dim3 grid_size((input->width + block_size.x - 1) / block_size.x,
+            (input->height + block_size.y - 1) / block_size.y,
+            input->batch);
+        relu3<<<grid_size, block_size>>>(input);
+    }
 }
 
 Matrix *Transpose(Matrix *input) {
     assert(input->dim == 3);
     Matrix *output = new_unified_matrix(input->batch, input->width, input->height);
     dim3 block_size(32, 32);
-    dim3 grid_size((output->width + block_size.x - 1) / block_size.x,
-        (output->height + block_size.y - 1) / block_size.y);
+    dim3 grid_size(
+        (output->width + block_size.x - 1) / block_size.x,
+        (output->height + block_size.y - 1) / block_size.y,
+        output->batch);
     transpose<<<grid_size, block_size>>>(input, output);
     return output;
 }
 
 Matrix *Max(Matrix *input) {
     assert(input->dim == 3);
-    Matrix *output = new_unified_matrix(input->height, 1);
-    dim3 block_size(1024, 1);
+    Matrix *output = new_unified_matrix(input->batch, input->height);
+    dim3 block_size(32, 32);
     dim3 grid_size((output->width + block_size.x - 1) / block_size.x,
         (output->height + block_size.y - 1) / block_size.y);
     maxpool1d_all_by_row<<<grid_size, block_size>>>(input, output);
@@ -100,8 +113,10 @@ void BatchNorm1d_3d(Matrix *input, std::vector<ElementType> &running_mean, std::
     Matrix *betas = host_device_by_matrix(beta, input->height, 1);
 
     dim3 block_size(32, 32);
-    dim3 grid_size((input->width + block_size.x - 1) / block_size.x,
-        (input->height + block_size.y - 1) / block_size.y);
+    dim3 grid_size(
+        (input->width + block_size.x - 1) / block_size.x,
+        (input->height + block_size.y - 1) / block_size.y,
+        input->batch);
     batch_norm1d_3d<<<grid_size, block_size>>>(input, running_means, running_vars, gammas, betas, eps);
     free_matrix(running_means);
     free_matrix(running_vars);
@@ -141,7 +156,7 @@ Matrix *STN3d(Matrix *input, std::map<std::string, std::vector<ElementType>> &pa
     free_matrix(conv3);
 
     // max_pool->dump();
-    max_pool->reshape(1, 1024); // (B, 1024)
+    max_pool->reshape(input->batch, 1024); // (B, 1024)
     Matrix *fc1 = Linear(max_pool, params["feat.stn.fc1.weight"], params["feat.stn.fc1.bias"], 1024, 512);
     // fc1->dump();
     BatchNorm1d_2d(fc1, params["feat.stn.bn4.running_mean"], params["feat.stn.bn4.running_var"], params["feat.stn.bn4.weight"], params["feat.stn.bn4.bias"], eps);
@@ -185,7 +200,7 @@ Matrix *STNkd(Matrix *input, std::map<std::string, std::vector<ElementType>> &pa
     Matrix *max_pool = Max(conv3);
     free_matrix(conv3);
 
-    max_pool->reshape(1, 1024);
+    max_pool->reshape(input->batch, 1024);
     Matrix *fc1 = Linear(max_pool, params["feat.fstn.fc1.weight"], params["feat.fstn.fc1.bias"], 1024, 512);
     BatchNorm1d_2d(fc1, params["feat.fstn.bn4.running_mean"], params["feat.fstn.bn4.running_var"], params["feat.fstn.bn4.weight"], params["feat.fstn.bn4.bias"], 1e-5);
     Relu(fc1);
@@ -209,8 +224,10 @@ Matrix *Multifly_With_T(Matrix *input, Matrix *weight) {
     assert(input->height == weight->height);
     Matrix *output = new_unified_matrix(input->batch, weight->width, input->width);
     dim3 block_size(32, 32);
-    dim3 grid_size((output->width + block_size.x - 1) / block_size.x,
-        (output->height + block_size.y - 1) / block_size.y);
+    dim3 grid_size(
+        (output->width + block_size.x - 1) / block_size.x,
+        (output->height + block_size.y - 1) / block_size.y,
+        output->batch);
     multifly_with_t_shared_mem<<<grid_size, block_size>>>(input, output, weight);
     return output;
 }
@@ -247,7 +264,7 @@ Matrix *PointNetEncoder(Matrix *input, std::map<std::string, std::vector<Element
     Matrix *max_pool = Max(conv3); //(B, 1024, 1)
     free_matrix(conv3);
 
-    max_pool->reshape(1, 1024); // (B, 1, 1024)
+    max_pool->reshape(input->batch, 1024); // (B, 1024)
     return max_pool;
 }
 

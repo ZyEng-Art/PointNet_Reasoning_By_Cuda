@@ -9,4 +9,5 @@
 #include <string>
 #include <vector>
 typedef float ElementType;
+#define BLOCK_SIZE 32
 #endif

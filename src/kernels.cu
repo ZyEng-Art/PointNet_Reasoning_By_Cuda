@@ -7,13 +7,17 @@ __global__ void conv1d_1kernel(Matrix *input, Matrix *output, Matrix *weight, Ma
     // 不使用shared memory
     unsigned row = blockIdx.y * blockDim.y + threadIdx.y;
     unsigned col = blockIdx.x * blockDim.x + threadIdx.x;
+    unsigned z = blockIdx.z;
+    if (z >= output->batch || row >= output->height || col >= output->width)
+        return;
     ElementType sum = bias->get_element(row, 0);
+    // printf("%d %d %d %f\n", row, col, z, sum);
     for (unsigned i = 0; i < input->height /*weight->width*/; i++) {
-        // printf("%d %d %d  %f %f\n", row, col, i, weight->get_element(row, i), input->get_element(i, col));
-        sum += weight->get_element(row, i) * input->get_element(i, col);
+        sum += weight->get_element(row, i) * input->get_element(z, i, col);
+        // printf("%d %d %d %d  %f %f %f\n", z, row, col, i, weight->get_element(row, i), input->get_element(z, i, col), sum);
     }
     // printf("%d %d %f\n", row, col, sum);
-    output->set_element(row, col, sum);
+    output->set_element(z, row, col, sum);
 }
 
 __global__ void conv1d_1kernel_shared_mem(Matrix *input, Matrix *output, Matrix *weight, Matrix *bias) {
@@ -25,14 +29,15 @@ __global__ void conv1d_1kernel_shared_mem(Matrix *input, Matrix *output, Matrix 
     __shared__ ElementType shared_weight[32][32];
     unsigned row = blockIdx.y * blockDim.y + threadIdx.y;
     unsigned col = blockIdx.x * blockDim.x + threadIdx.x;
+    unsigned z = blockIdx.z;
     // matrix 都是按32对齐了，不用进行判断
     ElementType sum = bias->get_element(row, 0);
     for (unsigned i = 0; i < input->height /*weight->width*/; i += blockDim.x) {
         shared_input[threadIdx.y][threadIdx.x] = 0;
         shared_weight[threadIdx.y][threadIdx.x] = 0;
-        if (i + threadIdx.y < input->height && col < input->width)
-            shared_input[threadIdx.y][threadIdx.x] = input->get_element(i + threadIdx.y, col);
-        if (row < weight->height && i + threadIdx.x < weight->width)
+        if (z < input->batch && i + threadIdx.y < input->height && col < input->width)
+            shared_input[threadIdx.y][threadIdx.x] = input->get_element(z, i + threadIdx.y, col);
+        if (z < input->batch && row < weight->height && i + threadIdx.x < weight->width)
             shared_weight[threadIdx.y][threadIdx.x] = weight->get_element(row, i + threadIdx.x);
         __syncthreads();
         for (unsigned j = 0; j < blockDim.x; j++) {
@@ -40,17 +45,19 @@ __global__ void conv1d_1kernel_shared_mem(Matrix *input, Matrix *output, Matrix 
         }
         __syncthreads();
     }
-    if (row >= output->height || col >= output->width) {
+    if (z >= output->batch || row >= output->height || col >= output->width) {
         return;
     }
-    output->set_element(row, col, sum);
+    // std::cout<<row<<" "<<col<<" "<<sum<<std::endl;
+    // printf("%d %d %f\n", row, col, sum);
+    output->set_element(z, row, col, sum);
 }
 
 // specially, input is n x d, weight is m x d, bias is m x 1, output is n x m
 __global__ void linear(Matrix *input, Matrix *output, Matrix *weight, Matrix *bias) {
     unsigned row = blockIdx.y * blockDim.y + threadIdx.y;
     unsigned col = blockIdx.x * blockDim.x + threadIdx.x;
-       if(row >= output->height || col >= output->width)
+    if (row >= output->height || col >= output->width)
         return;
     ElementType sum = bias->get_element(col, 0);
     for (unsigned i = 0; i < input->width /*weight->height*/; i++) {
@@ -65,11 +72,11 @@ __global__ void linear_shared_mem(Matrix *input, Matrix *output, Matrix *weight,
     unsigned row = blockIdx.y * blockDim.y + threadIdx.y;
     unsigned col = blockIdx.x * blockDim.x + threadIdx.x;
     ElementType sum = bias->get_element(col, 0);
-    for (unsigned i = 0; i < input->width /*weight->height*/; i+=blockDim.x) {
+    for (unsigned i = 0; i < input->width /*weight->height*/; i += blockDim.x) {
         shared_input[threadIdx.y][threadIdx.x] = 0;
         shared_weight[threadIdx.y][threadIdx.x] = 0;
         // printf("%d %d %f %f\n", threadIdx.y, threadIdx.x, input->get_element(row, i + threadIdx.x), weight->get_element(col, i + threadIdx.x));
-        if (i + threadIdx.x < input->width){
+        if (i + threadIdx.x < input->width) {
             if (row < input->height)
                 shared_input[threadIdx.y][threadIdx.x] = input->get_element(row, i + threadIdx.x);
             if (col < weight->height)
@@ -82,7 +89,7 @@ __global__ void linear_shared_mem(Matrix *input, Matrix *output, Matrix *weight,
         }
         __syncthreads();
     }
-    if(row >= output->height || col >= output->width)
+    if (row >= output->height || col >= output->width)
         return;
     output->set_element(row, col, sum);
 }
@@ -93,31 +100,40 @@ __global__ void add(Matrix *a, Matrix *b, Matrix *c) {
     c->set_element(row, col, a->get_element(row, col) + b->get_element(row, col));
 }
 
-__global__ void relu(Matrix *a) {
+__global__ void relu2(Matrix *a) {
     unsigned row = blockIdx.y * blockDim.y + threadIdx.y;
     unsigned col = blockIdx.x * blockDim.x + threadIdx.x;
-    if(row >= a->height || col >= a->width)
+    if (row >= a->height || col >= a->width)
         return;
     a->set_element(row, col, a->get_element(row, col) > 0 ? a->get_element(row, col) : 0);
 }
 
+__global__ void relu3(Matrix *a) {
+    unsigned row = blockIdx.y * blockDim.y + threadIdx.y;
+    unsigned col = blockIdx.x * blockDim.x + threadIdx.x;
+    unsigned z = blockIdx.z;
+    if (z >= a->batch || row >= a->height || col >= a->width)
+        return;
+    a->set_element(z, row, col, a->get_element(z, row, col) > 0 ? a->get_element(z, row, col) : 0);
+}
 // TODO: 想到的优化
 __global__ void batch_norm1d_3d(Matrix *input, Matrix *running_mean, Matrix *running_var, Matrix *gamma, Matrix *beta, ElementType eps) {
     unsigned row = blockIdx.y * blockDim.y + threadIdx.y;
     unsigned col = blockIdx.x * blockDim.x + threadIdx.x;
-       if(row >= input->height || col >= input->width)
+    unsigned z = blockIdx.z;
+    if (z >= input->batch || row >= input->height || col >= input->width)
         return;
     ElementType mean = running_mean->get_element(row, 0);
     ElementType var = running_var->get_element(row, 0);
-    ElementType x = input->get_element(row, col);
+    ElementType x = input->get_element(z, row, col);
     ElementType y = (x - mean) / sqrt(var + eps);
-    input->set_element(row, col, gamma->get_element(row, 0) * y + beta->get_element(row, 0));
+    input->set_element(z, row, col, gamma->get_element(row, 0) * y + beta->get_element(row, 0));
 }
 
 __global__ void batch_norm1d_2d(Matrix *input, Matrix *running_mean, Matrix *running_var, Matrix *gamma, Matrix *beta, ElementType eps) {
     unsigned row = blockIdx.y * blockDim.y + threadIdx.y;
     unsigned col = blockIdx.x * blockDim.x + threadIdx.x;
-       if(row >= input->height || col >= input->width)
+    if (row >= input->height || col >= input->width)
         return;
     ElementType mean = running_mean->get_element(0, col);
     ElementType var = running_var->get_element(0, col);
@@ -139,11 +155,11 @@ __global__ void maxpool1d_all_by_column(Matrix *input, Matrix *output) {
 __global__ void maxpool1d_all_by_row(Matrix *input, Matrix *output) {
     unsigned row = blockIdx.y * blockDim.y + threadIdx.y;
     unsigned col = blockIdx.x * blockDim.x + threadIdx.x;
-    if(row >= output->height || col >= output->width)
+    if (row >= output->height || col >= output->width)
         return;
     ElementType max = -1e9;
     for (unsigned i = 0; i < input->width; i++) {
-        max = fmax(max, input->get_element(row, i));
+        max = fmax(max, input->get_element(row, col, i));
     }
     output->set_element(row, col, max);
 }
@@ -153,7 +169,7 @@ __global__ void self_add_i(Matrix *input, unsigned I_size) {
     unsigned row = blockIdx.y * blockDim.y + threadIdx.y;
     unsigned col = blockIdx.x * blockDim.x + threadIdx.x;
     col = col * I_size + col;
-    if(row >= input->height || col >= input->width)
+    if (row >= input->height || col >= input->width)
         return;
     // printf("%d %d %d %d %d\n", I_size, row, col, input->height, input->width);
     input->set_element(row, col, input->get_element(row, col) + 1);
@@ -162,15 +178,17 @@ __global__ void self_add_i(Matrix *input, unsigned I_size) {
 __global__ void transpose(Matrix *input, Matrix *output) {
     unsigned row = blockIdx.y * blockDim.y + threadIdx.y;
     unsigned col = blockIdx.x * blockDim.x + threadIdx.x;
-    if(row >= output->height || col >= output->width)
+    unsigned z = blockIdx.z;
+    if (z >= output->batch || row >= output->height || col >= output->width)
         return;
-    output->set_element(row, col, input->get_element(col, row));
+    // printf("%d %d %d %f\n", z, row, col, input->get_element(z, col, row));
+    output->set_element(z, row, col, input->get_element(z, col, row));
 }
 
 __global__ void multifly(Matrix *input, Matrix *output, Matrix *trans) {
     unsigned row = blockIdx.y * blockDim.y + threadIdx.y;
     unsigned col = blockIdx.x * blockDim.x + threadIdx.x;
-    if(row >= output->height || col >= output->width)
+    if (row >= output->height || col >= output->width)
         return;
     ElementType sum = 0;
     for (unsigned i = 0; i < input->width /*weight->height*/; i++) {
@@ -179,38 +197,39 @@ __global__ void multifly(Matrix *input, Matrix *output, Matrix *trans) {
     output->set_element(row, col, sum);
 }
 
-// input d x n, trans d x m, output m x n (input^T * trans)^T=trans^T * input
+// input b x d x n, trans b x d x m, output b x m x n (input^T * trans)^T=trans^T * input
 __global__ void multifly_with_t_shared_mem(Matrix *input, Matrix *output, Matrix *trans) {
-   __shared__ ElementType shared_input[32][32];
+    __shared__ ElementType shared_input[32][32];
     __shared__ ElementType shared_trans[32][32];
     unsigned row = blockIdx.y * blockDim.y + threadIdx.y;
     unsigned col = blockIdx.x * blockDim.x + threadIdx.x;
+    unsigned z = blockIdx.z;
     // matrix 都是按32对齐了，不用进行判断
     ElementType sum = 0;
     for (unsigned i = 0; i < input->height /*weight->width*/; i += blockDim.x) {
         shared_input[threadIdx.y][threadIdx.x] = 0;
         shared_trans[threadIdx.y][threadIdx.x] = 0;
-        if (i + threadIdx.y < input->height && col < input->width)
-            shared_input[threadIdx.y][threadIdx.x] = input->get_element(i + threadIdx.y, col);
-        if (row < trans->width && i + threadIdx.x < trans->height)
-            shared_trans[threadIdx.y][threadIdx.x] = trans->get_element(i + threadIdx.x, row);
+        if (z < input->batch && i + threadIdx.y < input->height && col < input->width)
+            shared_input[threadIdx.y][threadIdx.x] = input->get_element(z, i + threadIdx.y, col);
+        if (z < input->batch && row < trans->width && i + threadIdx.x < trans->height)
+            shared_trans[threadIdx.y][threadIdx.x] = trans->get_element(z, i + threadIdx.x, row);
         __syncthreads();
         for (unsigned j = 0; j < blockDim.x; j++) {
             sum += shared_trans[threadIdx.y][j] * shared_input[j][threadIdx.x];
         }
         __syncthreads();
     }
-    if (row >= output->height || col >= output->width) {
+    if (z >= output->batch || row >= output->height || col >= output->width) {
         return;
     }
-    output->set_element(row, col, sum);
+    output->set_element(z, row, col, sum);
 }
 
 // input d x n, trans d x m, output m x n (input^T * trans)^T=trans^T * input
 __global__ void multifly_with_t(Matrix *input, Matrix *output, Matrix *trans) {
     unsigned row = blockIdx.y * blockDim.y + threadIdx.y;
     unsigned col = blockIdx.x * blockDim.x + threadIdx.x;
-    if(row >= output->height || col >= output->width)
+    if (row >= output->height || col >= output->width)
         return;
     ElementType sum = 0;
     for (unsigned i = 0; i < input->height; i++) {

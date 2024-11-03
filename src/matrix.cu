@@ -2,7 +2,11 @@
 
 Matrix *new_unified_matrix(unsigned height, unsigned width) {
     ElementType *device_array;
-    cudaMalloc(&device_array, height * width * sizeof(ElementType));
+    cudaError_t err = cudaMalloc(&device_array, height * width * sizeof(ElementType));
+    if (err != cudaSuccess) {
+        std::cerr << "cudaMalloc failed: " << cudaGetErrorString(err) << "\n";
+        exit(-1);
+    }
     Matrix *unified_matrix;
     cudaMallocManaged(&unified_matrix, sizeof(Matrix));
     unified_matrix->dim = 2;

@@ -13,7 +13,19 @@
             "cwd": "/home/course/zengyong/PointNet_Reasoning_By_Cuda/build",
             "environment": [],
             "preLaunchTask": "build",
-            "miDebuggerPath": "/usr/bin/gdb",//usr/local/cuda-12.1/bin/cuda-gdb"
+            "miDebuggerPath": "/usr/bin/gdb", //usr/local/cuda-12.1/bin/cuda-gdb"
+        }
+    ]
+}
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python Debugger: Python File",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal"
         }
     ]
 }

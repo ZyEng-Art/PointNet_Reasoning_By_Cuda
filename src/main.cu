@@ -162,23 +162,43 @@ void fix_length_with_median(std::vector<std::vector<float>> &data) {
 }
 
 void test() {
-    std::vector<float> test_points = { 1, 2, 3, 5, 6, 7, 8, 9, 10 };
-    std::vector<float> test_weights = { 1, 1, 2, 2, 3, 3 };
+    std::vector<float> test_points = { 1, 2, 3, 5, 6, 7, 8, 9, 10, 1, 2, 3, 5, 6, 7, 8, 9, 10 };
+    std::vector<float> test_weights = { 1, 2, 3, 1, 2, 3 };
     std::vector<float> test_bias = { 1, 2 };
-    Matrix *points = host_device_by_matrix(test_points, 1, 3, 3);
-    Matrix *points_t = Transpose(points);
-    Matrix *weights = host_device_by_matrix(test_weights, 3, 2);
+    Matrix *points = host_device_by_matrix(test_points, 2, 3, 3);
+    // Matrix *points_t = Transpose(points);
+    // Matrix *weights = host_device_by_matrix(test_weights, 3, 2);
     // Matrix *bias = host_device_by_matrix(test_bias, 2, 1);
     // Matrix *out = Conv1d(points_t, test_weights, test_bias, 3, 2);
+    // Matrix *out = Max(points);
+    Matrix *points_t = Transpose(points);
     // Matrix *out = Linear(points, test_weights, test_bias, 3, 2);
-    Matrix *out = Multifly_With_T(points_t, weights);
+    // Matrix *out = Multifly_With_T(points_t, weights);
     // Self_Add_I(points);
     // weights->dump();
     points->dump();
-    out->dump();
+    points_t->dump();
+    // out->dump();
     free_matrix(points);
     // free_matrix(points_t);
     // free_matrix(out);
+}
+
+std::vector<std::vector<float>> scatter_to_batch(std::vector<std::vector<float>> &data, unsigned batch_size) {
+    std::vector<std::vector<float>> batch_data;
+    for (size_t i = 0; i < data.size(); i += batch_size) {
+        std::vector<float> batch;
+        for (size_t j = 0; j < batch_size; j++) {
+            if (i + j < data.size()) {
+                batch.insert(batch.end(), data[i + j].begin(), data[i + j].end());
+            }
+            else {
+                batch.insert(batch.end(), data[i].size(), 0);
+            }
+        }
+        batch_data.push_back(batch);
+    }
+    return batch_data;
 }
 int main(int argc, char *argv[]) {
     // output_device_info();
@@ -197,33 +217,40 @@ int main(int argc, char *argv[]) {
     read_h5_file(file_path, list_of_points, list_of_labels);
     fix_length_with_median(list_of_points);
     test();
+    unsigned point_channels = 3;
+    unsigned sum = 0;
+    std::vector<std::vector<float>> list_of_points_batch = scatter_to_batch(list_of_points, BLOCK_SIZE);
     // return;
     // 开始计时，使用chrono计时，不支持其它计时方式
     auto start = std::chrono::high_resolution_clock::now();
 
-    unsigned point_channels = 3;
-    unsigned sum = 0;
-    for (size_t i = 0; i < list_of_points.size(); i++) {
+    for (size_t i = 1; i < list_of_points_batch.size(); i++) {
         // TODO ...在这里实现利用CUDA对点云数据进行深度学习的推理过程，当然，你也可以改进for循环以使用batch推理提速...
         // 打印每一帧的数据，仅用于调试！
-        Matrix *points = host_device_by_matrix(list_of_points[i], 1, list_of_points[i].size() / point_channels, point_channels);
+        // std::cout << list_of_points_batch[i].size() << " " << BLOCK_SIZE * 22500 * 3 << std::endl;
+        // std::cout << list_of_points_batch[i][22500 * 3 + 5] << std::endl;
+        Matrix *points = host_device_by_matrix(list_of_points_batch[i], BLOCK_SIZE, list_of_points_batch[i].size() / point_channels / BLOCK_SIZE, point_channels);
         // points->dump();
         Matrix *points_t = Transpose(points);
         // points_t->dump();
 
         free_matrix(points);
         Matrix *out = PointNetClassifier(points_t, params, 10);
-        assert(out->dim == 2 && out->height == 1 && out->width == 10);
+        assert(out->dim == 2 && out->height == BLOCK_SIZE && out->width == 10);
         float *output = new float[out->height * out->width];
         cudaMemcpy(output, out->data, out->height * out->width * sizeof(float), cudaMemcpyDeviceToHost);
-        unsigned pred = argmax(output, out->width);
-        if (list_of_labels[i] == pred) {
-            std::cout << i << ": Predicted label: " << pred << " True label" << list_of_labels[i] << " success" << std::endl;
-            sum++;
+        for (int j = 0; j < BLOCK_SIZE; j++) {
+            if (i*BLOCK_SIZE + j >= list_of_points.size()) break;
+            unsigned pred = argmax(output + j * out->width, out->width);
+            if (list_of_labels[i * BLOCK_SIZE + j] == pred) {
+                std::cout << i * BLOCK_SIZE + j << ": Predicted label: " << pred << " True label" << list_of_labels[i * BLOCK_SIZE + j] << " success" << std::endl;
+                sum++;
+            }
+            else
+                std::cout << i * BLOCK_SIZE + j << ": Predicted label: " << pred << " True label" << list_of_labels[i * BLOCK_SIZE + j] << " failed" << std::endl;
         }
-        else
-            std::cout << i << ": Predicted label: " << pred << " True label" << list_of_labels[i] << " failed" << std::endl;
         free_matrix(points);
+        // break;
         // if (i == 1) break;
     }
     // 向主机端同步以等待所有异步调用的GPU kernel执行完毕，这句必须要有

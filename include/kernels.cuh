@@ -10,7 +10,8 @@ __global__ void linear_shared_mem(Matrix *input, Matrix *output, Matrix *weight,
 
 __global__ void add(Matrix *a, Matrix *b, Matrix *c);
 
-__global__ void relu(Matrix *a);
+__global__ void relu2(Matrix *a);
+__global__ void relu3(Matrix *a);
 
 __global__ void maxpool1d_all_by_column(Matrix *input, Matrix *output);
 

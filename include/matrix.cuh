@@ -70,7 +70,7 @@ public:
             for (int i = 0; i < height && i < 5; i++) {
                 std::cout << "     row " << i << ": ";
                 for (int j = 0; j < width && j < 5; j++) {
-                    std::cout << output[i * width + j] << " ";
+                    std::cout << output[k * width * height + i * width + j] << " ";
                 }
                 std::cout << std::endl;
             }
